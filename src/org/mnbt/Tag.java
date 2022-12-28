@@ -1,28 +1,18 @@
 package org.mnbt;
 
 public abstract class Tag<T> {
-    public static final byte END        = 0;
-    public static final byte BYTE       = 1;
-    public static final byte SHORT      = 2;
-    public static final byte INT        = 3;
-    public static final byte LONG       = 4;
-    public static final byte FLOAT      = 5;
-    public static final byte DOUBLE     = 6;
-    public static final byte BYTE_ARRAY = 7;
-    public static final byte STRING     = 8;
-    public static final byte LIST       = 9;
-    public static final byte COMPOUND   = 10;
-    public static final byte INT_ARRAY  = 11;
-    public static final byte LONG_ARRAY = 12;
-
-    public final byte id;
+    public final TagType id;
     public final String name;
     public T value;
     
-    protected Tag(byte id, String name, T value) {
+    protected Tag(TagType id, String name, T value) {
         this.id = id;
         this.name = name;
         this.value = value;
+    }
+
+    public final <V> V valueOfType(Class<V> type) throws InvalidTagException {
+        return TagType.valueOfType(this.value, id, type);
     }
 
     @Override

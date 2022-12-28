@@ -5,14 +5,14 @@ import java.util.Iterator;
 import java.util.List;
 
 public class ListTag<T> extends Tag<List<T>> implements Iterable<T> {
-    public final byte childId;
+    public final TagType childId;
     
-    public ListTag(byte childType, String name, List<T> value) {
-        super(LIST, name, value);
+    public ListTag(TagType childType, String name, List<T> value) {
+        super(TagType.LIST, name, value);
         this.childId = childType;
     }
 
-    public ListTag(byte childType, String name) {
+    public ListTag(TagType childType, String name) {
         this(childType, name, new ArrayList<>());
     }
 
@@ -75,11 +75,11 @@ public class ListTag<T> extends Tag<List<T>> implements Iterable<T> {
         StringBuilder b = new StringBuilder();
         b.append("[");
         for (int i = 0; ; i++) {
-            if (childId == BYTE_ARRAY && get(i) instanceof byte[]) {
+            if (childId == TagType.BYTE_ARRAY && get(i) instanceof byte[]) {
                 b.append(new ByteArrayTag(null, (byte[])get(i)));
-            } else if (childId == INT_ARRAY && get(i) instanceof int[]) {
+            } else if (childId == TagType.INT_ARRAY && get(i) instanceof int[]) {
                 b.append(new IntArrayTag(null, (int[])get(i)));
-            } else if (childId == LONG_ARRAY && get(i) instanceof long[]) {
+            } else if (childId == TagType.LONG_ARRAY && get(i) instanceof long[]) {
                 b.append(new LongArrayTag(null, (long[])get(i)));
             } else {
                 b.append(get(i));

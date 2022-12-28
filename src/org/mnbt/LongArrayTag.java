@@ -2,7 +2,7 @@ package org.mnbt;
 
 public class LongArrayTag extends Tag<long[]> {
     public LongArrayTag(String name, long[] value) {
-        super(LONG_ARRAY, name, value);
+        super(TagType.LONG_ARRAY, name, value);
     }
 
     @Override

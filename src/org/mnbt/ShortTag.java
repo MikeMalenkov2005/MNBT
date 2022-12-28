@@ -2,7 +2,7 @@ package org.mnbt;
 
 public class ShortTag extends Tag<Short> {
     public ShortTag(String name, Short value) {
-        super(SHORT, name, value);
+        super(TagType.SHORT, name, value);
     }
 
     @Override

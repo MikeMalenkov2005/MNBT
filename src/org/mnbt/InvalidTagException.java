@@ -5,7 +5,7 @@ public class InvalidTagException extends Exception {
         super(String.format("NBT tag with id %d is not supported!", id));
     }
 
-    public InvalidTagException(Class valueClass, byte id) {
-        super(String.format("NBT tag value type %s doesn't match with its id %d!", valueClass.toString(), id));
+    public InvalidTagException(Class<?> valueClass, TagType id) {
+        super(String.format("NBT tag value type %s doesn't match with its id %d!", valueClass.toString(), id.ordinal()));
     }
 }

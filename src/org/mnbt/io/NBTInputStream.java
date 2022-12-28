@@ -4,13 +4,11 @@ import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 
 import org.mnbt.ByteArrayTag;
 import org.mnbt.ByteTag;
 import org.mnbt.CompoundTag;
 import org.mnbt.DoubleTag;
-import org.mnbt.EndTag;
 import org.mnbt.FloatTag;
 import org.mnbt.IntArrayTag;
 import org.mnbt.IntTag;
@@ -22,61 +20,21 @@ import org.mnbt.RootTag;
 import org.mnbt.ShortTag;
 import org.mnbt.StringTag;
 import org.mnbt.Tag;
+import org.mnbt.TagType;
 
 public class NBTInputStream implements Closeable {
     private final DataInputStream in;
-    
-    public NBTInputStream(DataInputStream in) {
-        this.in = in;
-    }
 
     public NBTInputStream(InputStream in) {
-        this(new DataInputStream(in));
+        this.in = in instanceof DataInputStream ? (DataInputStream) in : new DataInputStream(in);
     }
 
-    public Tag<?> read() throws IOException, InvalidTagException {
-        byte id = in.readByte();
-        if (id < 0 || id > 12) throw new InvalidTagException(id);
-        if (id == Tag.END) return new EndTag();
+    public Tag<?> readTag() throws IOException, InvalidTagException {
+        TagType id = readTagId();
+        if (id == TagType.END) return null;
         short nameLength = in.readShort();
-        byte nameRaw[] = new byte[nameLength];
-        in.read(nameRaw);
-        String name = new String(nameRaw);
-        return switch (id) {
-            case Tag.BYTE -> new ByteTag(name, in.readByte());
-            case Tag.SHORT -> new ShortTag(name, in.readShort());
-            case Tag.INT -> new IntTag(name, in.readInt());
-            case Tag.LONG -> new LongTag(name, in.readLong());
-            case Tag.FLOAT -> new FloatTag(name, in.readFloat());
-            case Tag.DOUBLE -> new DoubleTag(name, in.readDouble());
-            case Tag.BYTE_ARRAY -> {
-                byte buf[] = new byte[in.readInt()];
-                in.read(buf);
-                yield new ByteArrayTag(name, buf);
-            }
-            case Tag.STRING -> {
-                byte buf[] = new byte[in.readShort()];
-                in.read(buf);
-                yield new StringTag(name, new String(buf));
-            }
-            case Tag.LIST -> readList(name);
-            case Tag.COMPOUND -> readCompound(name);
-            case Tag.INT_ARRAY -> {
-                int[] buf = new int[in.readInt()];
-                for (int i = 0; i < buf.length; i++) {
-                    buf[i] = in.readInt();
-                }
-                yield new IntArrayTag(name, buf);
-            }
-            case Tag.LONG_ARRAY -> {
-                long[] buf = new long[in.readInt()];
-                for (int i = 0; i < buf.length; i++) {
-                    buf[i] = in.readLong();
-                }
-                yield new LongArrayTag(name, buf);
-            }
-            default -> throw new InvalidTagException(id);
-        };
+        String name = nameLength > 0 ? new String(readByteArray(nameLength)) : null;
+        return readTagValue(id, name);
     }
 
     @Override
@@ -84,72 +42,87 @@ public class NBTInputStream implements Closeable {
         in.close();
     }
 
-    private CompoundTag readCompound(String name) throws IOException, InvalidTagException {
+    private TagType readTagId() throws IOException, InvalidTagException {
+        byte rawId = in.readByte();
+        if (rawId < 0 || rawId >= TagType.values().length) throw new InvalidTagException(rawId);
+        return TagType.values()[rawId];
+    }
+
+    private Tag<?> readTagValue(TagType id, String name) throws IOException, InvalidTagException {
+        return switch (id) {
+            case END -> null;
+            case BYTE -> new ByteTag(name, in.readByte());
+            case SHORT -> new ShortTag(name, in.readShort());
+            case INT -> new IntTag(name, in.readInt());
+            case LONG -> new LongTag(name, in.readLong());
+            case FLOAT -> new FloatTag(name, in.readFloat());
+            case DOUBLE -> new DoubleTag(name, in.readDouble());
+            case BYTE_ARRAY -> new ByteArrayTag(name, readByteArray(in.readInt()));
+            case STRING -> new StringTag(name, new String(readByteArray(in.readShort())));
+            case LIST -> readListValue(name);
+            case COMPOUND -> readCompoundValue(name);
+            case INT_ARRAY -> new IntArrayTag(name, readIntArray(in.readInt()));
+            case LONG_ARRAY -> new LongArrayTag(name, readLongArray(in.readInt()));
+        };
+    }
+
+    private byte[] readByteArray(int length) throws IOException {
+        byte buf[] = new byte[length];
+        in.read(buf);
+        return buf;
+    }
+
+    private int[] readIntArray(int length) throws IOException {
+        int[] buf = new int[length];
+        for (int i = 0; i < buf.length; i++) {
+            buf[i] = in.readInt();
+        }
+        return buf;
+    }
+
+    private long[] readLongArray(int length) throws IOException {
+        long[] buf = new long[length];
+        for (int i = 0; i < buf.length; i++) {
+            buf[i] = in.readLong();
+        }
+        return buf;
+    }
+
+    private CompoundTag readCompoundValue(String name) throws IOException, InvalidTagException {
         CompoundTag tag = (name == null || name.length() == 0) ? new RootTag() : new CompoundTag(name);
-        Tag<?> child = read();
-        while (child.id != Tag.END) {
+        Tag<?> child = readTag();
+        while (child != null) {
             tag.put(child);
-            child = read();
+            child = readTag();
         }
         return tag;
     }
 
-    private ListTag<?> readList(String name) throws IOException, InvalidTagException {
-        byte childId = in.readByte();
+    private ListTag<?> readListValue(String name) throws IOException, InvalidTagException {
+        TagType childId = readTagId();
         int size = in.readInt();
-        ListTag<?> tag = switch (childId) {
-            case Tag.END -> new ListTag<Byte>(childId, name);
-            case Tag.BYTE -> new ListTag<Byte>(childId, name);
-            case Tag.SHORT -> new ListTag<Short>(childId, name);
-            case Tag.INT -> new ListTag<Integer>(childId, name);
-            case Tag.LONG -> new ListTag<Long>(childId, name);
-            case Tag.FLOAT -> new ListTag<Float>(childId, name);
-            case Tag.DOUBLE -> new ListTag<Double>(childId, name);
-            case Tag.BYTE_ARRAY -> new ListTag<byte[]>(childId, name);
-            case Tag.STRING -> new ListTag<String>(childId, name);
-            case Tag.LIST -> new ListTag<ListTag<?>>(childId, name);
-            case Tag.COMPOUND -> new ListTag<CompoundTag>(childId, name);
-            case Tag.INT_ARRAY -> new ListTag<int[]>(childId, name);
-            case Tag.LONG_ARRAY -> new ListTag<long[]>(childId, name);
-            default -> throw new InvalidTagException(childId);
+        return switch (childId) {
+            case END -> readListChildren(childId, name, size, Byte.class);
+            case BYTE -> readListChildren(childId, name, size, Byte.class);
+            case SHORT -> readListChildren(childId, name, size, Short.class);
+            case INT -> readListChildren(childId, name, size, Integer.class);
+            case LONG -> readListChildren(childId, name, size, Long.class);
+            case FLOAT -> readListChildren(childId, name, size, Float.class);
+            case DOUBLE -> readListChildren(childId, name, size, Double.class);
+            case BYTE_ARRAY -> readListChildren(childId, name, size, byte[].class);
+            case STRING -> readListChildren(childId, name, size, String.class);
+            case LIST -> readListChildren(childId, name, size, ListTag.class);
+            case COMPOUND -> readListChildren(childId, name, size, CompoundTag.class);
+            case INT_ARRAY -> readListChildren(childId, name, size, int[].class);
+            case LONG_ARRAY -> readListChildren(childId, name, size, long[].class);
         };
+    }
+
+    private <T> ListTag<T> readListChildren(TagType childId, String name, int size, Class<T> type) throws IOException, InvalidTagException {
+        ListTag<T> tag = new ListTag<>(childId, name);
         for (int i = 0; i < size; i++) {
-            ((ListTag<Object>) tag).add(switch (childId) {
-                case Tag.END -> (Byte) in.readByte();
-                case Tag.BYTE -> (Byte) in.readByte();
-                case Tag.SHORT -> (Short) in.readShort();
-                case Tag.INT -> (Integer) in.readInt();
-                case Tag.LONG -> (Long) in.readLong();
-                case Tag.FLOAT -> (Float) in.readFloat();
-                case Tag.DOUBLE -> (Double) in.readDouble();
-                case Tag.BYTE_ARRAY -> {
-                    byte[] buf = new byte[in.readInt()];
-                    in.read(buf);
-                    yield buf;
-                }
-                case Tag.STRING -> {
-                    byte buf[] = new byte[in.readShort()];
-                    in.read(buf);
-                    yield new String(buf);
-                }
-                case Tag.LIST -> readList(null);
-                case Tag.COMPOUND -> readCompound(null);
-                case Tag.INT_ARRAY -> {
-                    int[] buf = new int[in.readInt()];
-                    for (int j = 0; j < buf.length; j++) {
-                        buf[j] = in.readInt();
-                    }
-                    yield buf;
-                }
-                case Tag.LONG_ARRAY -> {
-                    long[] buf = new long[in.readInt()];
-                    for (int j = 0; j < buf.length; j++) {
-                        buf[j] = in.readLong();
-                    }
-                    yield buf;
-                }
-                default -> throw new InvalidTagException(childId);
-            });
+            Tag<?> childTag = readTagValue(childId, null);
+            tag.add(childTag == null ? type.cast(0) : childTag.valueOfType(type));
         }
         return tag;
     }

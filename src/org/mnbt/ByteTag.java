@@ -2,7 +2,7 @@ package org.mnbt;
 
 public class ByteTag extends Tag<Byte> {
     public ByteTag(String name, Byte value) {
-        super(BYTE, name, value);
+        super(TagType.BYTE, name, value);
     }
 
     @Override

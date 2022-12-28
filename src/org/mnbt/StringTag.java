@@ -2,7 +2,7 @@ package org.mnbt;
 
 public class StringTag extends Tag<String> {
     public StringTag(String name, String value) {
-        super(STRING, name, value);
+        super(TagType.STRING, name, value);
     }
 
     @Override

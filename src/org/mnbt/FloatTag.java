@@ -2,7 +2,7 @@ package org.mnbt;
 
 public class FloatTag extends Tag<Float> {
     public FloatTag(String name, Float value) {
-        super(FLOAT, name, value);
+        super(TagType.FLOAT, name, value);
     }
 
     @Override

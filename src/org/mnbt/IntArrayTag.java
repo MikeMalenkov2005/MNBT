@@ -2,7 +2,7 @@ package org.mnbt;
 
 public class IntArrayTag extends Tag<int[]> {
     public IntArrayTag(String name, int[] value) {
-        super(INT_ARRAY, name, value);
+        super(TagType.INT_ARRAY, name, value);
     }
 
     @Override

@@ -6,11 +6,11 @@ import java.util.Map;
 
 public class CompoundTag extends Tag<Map<String, Tag<?>>> implements Iterable<Tag<?>> {
     public CompoundTag(String name, Map<String, Tag<?>> value) {
-        super(COMPOUND, name, value);
+        super(TagType.COMPOUND, name, value);
     }
 
     public CompoundTag(String name) {
-        super(COMPOUND, name, new HashMap<>());
+        this(name, new HashMap<>());
     }
 
     public int size() {
