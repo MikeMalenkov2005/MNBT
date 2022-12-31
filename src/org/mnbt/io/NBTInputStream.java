@@ -4,8 +4,6 @@ import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
-import java.util.Map;
 
 import org.mnbt.ByteArrayTag;
 import org.mnbt.ByteTag;
@@ -113,8 +111,8 @@ public class NBTInputStream implements Closeable {
             case DOUBLE -> readListChildren(childId, name, size, Double.class);
             case BYTE_ARRAY -> readListChildren(childId, name, size, byte[].class);
             case STRING -> readListChildren(childId, name, size, String.class);
-            case LIST -> readListChildren(childId, name, size, List.class);
-            case COMPOUND -> readListChildren(childId, name, size, Map.class);
+            case LIST -> readListChildren(childId, name, size, ListTag.class);
+            case COMPOUND -> readListChildren(childId, name, size, CompoundTag.class);
             case INT_ARRAY -> readListChildren(childId, name, size, int[].class);
             case LONG_ARRAY -> readListChildren(childId, name, size, long[].class);
         };
@@ -124,7 +122,10 @@ public class NBTInputStream implements Closeable {
         ListTag<T> tag = new ListTag<>(childId, name);
         for (int i = 0; i < size; i++) {
             Tag<?> childTag = readTagValue(childId, null);
-            tag.add(childTag == null ? type.cast(0) : childTag.valueOfType(type));
+            tag.add(switch (childId) {
+                case LIST, COMPOUND -> TagType.valueOfType(childTag, childId, type);
+                default -> childTag == null ? type.cast(0) : childTag.valueOfType(type);
+            });
         }
         return tag;
     }
